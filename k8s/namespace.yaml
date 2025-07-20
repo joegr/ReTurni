@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tournament-service
+  labels:
+    name: tournament-service
+    app: tournament
+    environment: production 

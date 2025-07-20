@@ -1,0 +1,194 @@
+# Tournament API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: tournament-api-service
+  namespace: tournament-service
+spec:
+  selector:
+    app: tournament-api
+  ports:
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000
+  type: ClusterIP
+---
+# ELO Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: elo-service
+  namespace: tournament-service
+spec:
+  selector:
+    app: elo-service
+  ports:
+  - protocol: TCP
+    port: 8081
+    targetPort: 8081
+  type: ClusterIP
+---
+# Leaderboard Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: leaderboard-svc
+  namespace: tournament-service
+spec:
+  selector:
+    app: leaderboard-svc
+  ports:
+  - protocol: TCP
+    port: 8082
+    targetPort: 8082
+  type: ClusterIP
+---
+# Review Workflow Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: review-workflow
+  namespace: tournament-service
+spec:
+  selector:
+    app: review-workflow
+  ports:
+  - protocol: TCP
+    port: 8083
+    targetPort: 8083
+  type: ClusterIP
+---
+# Hash Verification Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: hash-verification
+  namespace: tournament-service
+spec:
+  selector:
+    app: hash-verification
+  ports:
+  - protocol: TCP
+    port: 8084
+    targetPort: 8084
+  type: ClusterIP
+---
+# Notification Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-svc
+  namespace: tournament-service
+spec:
+  selector:
+    app: notification-svc
+  ports:
+  - protocol: TCP
+    port: 8085
+    targetPort: 8085
+  type: ClusterIP
+---
+# Team Management Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: team-management
+  namespace: tournament-service
+spec:
+  selector:
+    app: team-management
+  ports:
+  - protocol: TCP
+    port: 8086
+    targetPort: 8086
+  type: ClusterIP
+---
+# Match Scheduling Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: match-scheduling
+  namespace: tournament-service
+spec:
+  selector:
+    app: match-scheduling
+  ports:
+  - protocol: TCP
+    port: 8087
+    targetPort: 8087
+  type: ClusterIP
+---
+# Audit Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit-service
+  namespace: tournament-service
+spec:
+  selector:
+    app: audit-service
+  ports:
+  - protocol: TCP
+    port: 8088
+    targetPort: 8088
+  type: ClusterIP
+---
+# Admin Dashboard Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-dashboard-service
+  namespace: tournament-service
+spec:
+  selector:
+    app: admin-dashboard
+  ports:
+  - protocol: TCP
+    port: 3000
+    targetPort: 3000
+  type: ClusterIP
+---
+# Nginx Gateway Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-gateway
+  namespace: tournament-service
+spec:
+  selector:
+    app: nginx-gateway
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: LoadBalancer
+---
+# Prometheus Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: tournament-service
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - protocol: TCP
+    port: 9090
+    targetPort: 9090
+  type: ClusterIP
+---
+# Grafana Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  namespace: tournament-service
+spec:
+  selector:
+    app: grafana
+  ports:
+  - protocol: TCP
+    port: 3000
+    targetPort: 3000
+  type: ClusterIP 

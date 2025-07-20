@@ -1,0 +1,161 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tournament-config
+  namespace: tournament-service
+data:
+  # ELO Service Configuration
+  k-factor: "32"
+  initial-elo: "1500"
+  rating-decay: "0.95"
+  
+  # Hash Verification Configuration
+  hash-algorithm: "SHA-256"
+  hash-salt: "tournament-salt-2024"
+  
+  # Notification Configuration
+  smtp-host: "smtp.gmail.com"
+  smtp-port: "587"
+  notification-retry-attempts: "3"
+  notification-retry-delay: "5"
+  
+  # API Configuration
+  api-rate-limit: "100"
+  api-rate-window: "60"
+  cors-origins: "http://localhost:3000,https://tournament.example.com"
+  
+  # Logging Configuration
+  log-level: "INFO"
+  log-format: "json"
+  
+  # Tournament Configuration
+  max-teams-per-tournament: "64"
+  max-players-per-team: "8"
+  default-match-duration: "120"
+  default-tournament-duration: "30"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: tournament-service
+data:
+  nginx.conf: |
+    events {
+      worker_connections 1024;
+    }
+    
+    http {
+      upstream tournament_api {
+        server tournament-api-service:8000;
+      }
+      
+      upstream admin_dashboard {
+        server admin-dashboard-service:3000;
+      }
+      
+      # Rate limiting
+      limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+      
+      server {
+        listen 80;
+        server_name localhost;
+        
+        # API Gateway
+        location /api/ {
+          limit_req zone=api burst=20 nodelay;
+          
+          proxy_pass http://tournament_api;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          
+          # CORS headers
+          add_header Access-Control-Allow-Origin *;
+          add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS";
+          add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization";
+        }
+        
+        # Admin Dashboard
+        location /admin/ {
+          proxy_pass http://admin_dashboard;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        
+        # Health check
+        location /health {
+          access_log off;
+          return 200 "healthy\n";
+          add_header Content-Type text/plain;
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: tournament-service
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    rule_files:
+      # - "first_rules.yml"
+      # - "second_rules.yml"
+    
+    scrape_configs:
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+      
+      - job_name: 'tournament-api'
+        static_configs:
+          - targets: ['tournament-api-service:8000']
+        metrics_path: '/metrics'
+      
+      - job_name: 'elo-service'
+        static_configs:
+          - targets: ['elo-service:8081']
+        metrics_path: '/metrics'
+      
+      - job_name: 'leaderboard-svc'
+        static_configs:
+          - targets: ['leaderboard-svc:8082']
+        metrics_path: '/metrics'
+      
+      - job_name: 'review-workflow'
+        static_configs:
+          - targets: ['review-workflow:8083']
+        metrics_path: '/metrics'
+      
+      - job_name: 'hash-verification'
+        static_configs:
+          - targets: ['hash-verification:8084']
+        metrics_path: '/metrics'
+      
+      - job_name: 'notification-svc'
+        static_configs:
+          - targets: ['notification-svc:8085']
+        metrics_path: '/metrics'
+      
+      - job_name: 'team-management'
+        static_configs:
+          - targets: ['team-management:8086']
+        metrics_path: '/metrics'
+      
+      - job_name: 'match-scheduling'
+        static_configs:
+          - targets: ['match-scheduling:8087']
+        metrics_path: '/metrics'
+      
+      - job_name: 'audit-service'
+        static_configs:
+          - targets: ['audit-service:8088']
+        metrics_path: '/metrics' 

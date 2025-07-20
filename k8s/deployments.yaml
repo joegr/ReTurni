@@ -1,0 +1,759 @@
+# Tournament API Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tournament-api
+  namespace: tournament-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tournament-api
+  template:
+    metadata:
+      labels:
+        app: tournament-api
+    spec:
+      containers:
+      - name: tournament-api
+        image: tournament-service/tournament-api:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: redis-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: rabbitmq-url
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: jwt-secret
+        - name: ELO_SERVICE_URL
+          value: "http://elo-service:8081"
+        - name: LEADERBOARD_SERVICE_URL
+          value: "http://leaderboard-svc:8082"
+        - name: REVIEW_SERVICE_URL
+          value: "http://review-workflow:8083"
+        - name: HASH_SERVICE_URL
+          value: "http://hash-verification:8084"
+        - name: NOTIFICATION_SERVICE_URL
+          value: "http://notification-svc:8085"
+        - name: TEAM_SERVICE_URL
+          value: "http://team-management:8086"
+        - name: MATCH_SERVICE_URL
+          value: "http://match-scheduling:8087"
+        - name: AUDIT_SERVICE_URL
+          value: "http://audit-service:8088"
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: tournament-config
+              key: log-level
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# ELO Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elo-service
+  namespace: tournament-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: elo-service
+  template:
+    metadata:
+      labels:
+        app: elo-service
+    spec:
+      containers:
+      - name: elo-service
+        image: tournament-service/elo-service:latest
+        ports:
+        - containerPort: 8081
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: redis-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: rabbitmq-url
+        - name: K_FACTOR
+          valueFrom:
+            configMapKeyRef:
+              name: tournament-config
+              key: k-factor
+        - name: INITIAL_ELO
+          valueFrom:
+            configMapKeyRef:
+              name: tournament-config
+              key: initial-elo
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Leaderboard Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: leaderboard-svc
+  namespace: tournament-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: leaderboard-svc
+  template:
+    metadata:
+      labels:
+        app: leaderboard-svc
+    spec:
+      containers:
+      - name: leaderboard-svc
+        image: tournament-service/leaderboard-svc:latest
+        ports:
+        - containerPort: 8082
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: redis-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: rabbitmq-url
+        resources:
+          requests:
+            memory: "384Mi"
+            cpu: "300m"
+          limits:
+            memory: "768Mi"
+            cpu: "600m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8082
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8082
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Review Workflow Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: review-workflow
+  namespace: tournament-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: review-workflow
+  template:
+    metadata:
+      labels:
+        app: review-workflow
+    spec:
+      containers:
+      - name: review-workflow
+        image: tournament-service/review-workflow:latest
+        ports:
+        - containerPort: 8083
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: redis-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: rabbitmq-url
+        - name: HASH_SERVICE_URL
+          value: "http://hash-verification:8084"
+        - name: NOTIFICATION_SERVICE_URL
+          value: "http://notification-svc:8085"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8083
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8083
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Hash Verification Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hash-verification
+  namespace: tournament-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hash-verification
+  template:
+    metadata:
+      labels:
+        app: hash-verification
+    spec:
+      containers:
+      - name: hash-verification
+        image: tournament-service/hash-verification:latest
+        ports:
+        - containerPort: 8084
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: redis-url
+        - name: HASH_ALGORITHM
+          valueFrom:
+            configMapKeyRef:
+              name: tournament-config
+              key: hash-algorithm
+        resources:
+          requests:
+            memory: "200Mi"
+            cpu: "200m"
+          limits:
+            memory: "400Mi"
+            cpu: "400m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8084
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8084
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Notification Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-svc
+  namespace: tournament-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notification-svc
+  template:
+    metadata:
+      labels:
+        app: notification-svc
+    spec:
+      containers:
+      - name: notification-svc
+        image: tournament-service/notification-svc:latest
+        ports:
+        - containerPort: 8085
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: redis-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: rabbitmq-url
+        - name: SMTP_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: tournament-config
+              key: smtp-host
+        - name: SMTP_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: tournament-config
+              key: smtp-port
+        - name: SMTP_USER
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: smtp-user
+        - name: SMTP_PASS
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: smtp-pass
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8085
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8085
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Team Management Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: team-management
+  namespace: tournament-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: team-management
+  template:
+    metadata:
+      labels:
+        app: team-management
+    spec:
+      containers:
+      - name: team-management
+        image: tournament-service/team-management:latest
+        ports:
+        - containerPort: 8086
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: redis-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: rabbitmq-url
+        - name: NOTIFICATION_SERVICE_URL
+          value: "http://notification-svc:8085"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8086
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8086
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Match Scheduling Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: match-scheduling
+  namespace: tournament-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: match-scheduling
+  template:
+    metadata:
+      labels:
+        app: match-scheduling
+    spec:
+      containers:
+      - name: match-scheduling
+        image: tournament-service/match-scheduling:latest
+        ports:
+        - containerPort: 8087
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: redis-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: rabbitmq-url
+        - name: NOTIFICATION_SERVICE_URL
+          value: "http://notification-svc:8085"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8087
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8087
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Audit Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit-service
+  namespace: tournament-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: audit-service
+  template:
+    metadata:
+      labels:
+        app: audit-service
+    spec:
+      containers:
+      - name: audit-service
+        image: tournament-service/audit-service:latest
+        ports:
+        - containerPort: 8088
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: redis-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: tournament-secrets
+              key: rabbitmq-url
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8088
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8088
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Admin Dashboard Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-dashboard
+  namespace: tournament-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: admin-dashboard
+  template:
+    metadata:
+      labels:
+        app: admin-dashboard
+    spec:
+      containers:
+      - name: admin-dashboard
+        image: tournament-service/admin-dashboard:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: REACT_APP_API_URL
+          value: "http://nginx-gateway/api"
+        - name: REACT_APP_WS_URL
+          value: "ws://nginx-gateway/ws"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Nginx Gateway Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-gateway
+  namespace: tournament-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx-gateway
+  template:
+    metadata:
+      labels:
+        app: nginx-gateway
+    spec:
+      containers:
+      - name: nginx-gateway
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+---
+# Prometheus Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: tournament-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:latest
+        ports:
+        - containerPort: 9090
+        volumeMounts:
+        - name: prometheus-config
+          mountPath: /etc/prometheus/prometheus.yml
+          subPath: prometheus.yml
+        - name: prometheus-storage
+          mountPath: /prometheus
+        command:
+        - '--config.file=/etc/prometheus/prometheus.yml'
+        - '--storage.tsdb.path=/prometheus'
+        - '--web.console.libraries=/etc/prometheus/console_libraries'
+        - '--web.console.templates=/etc/prometheus/consoles'
+        - '--storage.tsdb.retention.time=200h'
+        - '--web.enable-lifecycle'
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: prometheus-config
+        configMap:
+          name: prometheus-config
+      - name: prometheus-storage
+        persistentVolumeClaim:
+          claimName: prometheus-pvc
+---
+# Grafana Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: tournament-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: "admin"
+        volumeMounts:
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+      volumes:
+      - name: grafana-storage
+        persistentVolumeClaim:
+          claimName: grafana-pvc 
