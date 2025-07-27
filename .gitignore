@@ -1,0 +1,359 @@
+# Tournament Management System - .gitignore
+# Protects secrets, credentials, and sensitive files
+
+# === SECRETS & CREDENTIALS ===
+# Environment files with secrets
+.env
+.env.*
+!.env.example
+.env.local
+.env.development
+.env.staging
+.env.production
+
+# API Keys and tokens
+**/api_keys.txt
+**/tokens.txt
+**/*_key
+**/*_secret
+**/*_token
+**/*_pass
+**/*_password
+
+# SSL Certificates and private keys
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+ssl/
+certs/
+certificates/
+
+# JWT secrets
+jwt_secret*
+*.jwt
+.jwt
+
+# Database credentials
+db_credentials*
+database.env
+pg_password*
+
+# Docker secrets
+docker-compose.override.yml
+docker-compose.local.yml
+secrets/
+.secrets/
+
+# === LOGS & MONITORING ===
+# Log files
+logs/
+*.log
+**/*.log
+log/
+audit_logs/
+access.log
+error.log
+debug.log
+application.log
+
+# Monitoring data
+prometheus_data/
+grafana_data/
+metrics/
+monitoring_exports/
+
+# Security scan reports
+security_report.json
+security_reports/
+bandit_report*
+safety_report*
+vulnerability_report*
+
+# === DATABASE & STORAGE ===
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+db/
+database/
+data/postgres/
+data/redis/
+data/rabbitmq/
+
+# Database backups
+backups/
+*.sql
+*.dump
+*.backup
+db_backup*
+database_backup*
+
+# Redis dumps
+dump.rdb
+*.rdb
+
+# === DEVELOPMENT FILES ===
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Poetry
+poetry.lock
+
+# Pipenv
+Pipfile.lock
+
+# Node.js (for frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+
+# Frontend build artifacts
+frontend/build/
+frontend/dist/
+frontend/.next/
+frontend/out/
+.nuxt/
+.vuepress/dist
+
+# === DOCKER & CONTAINERS ===
+# Docker volumes
+volumes/
+docker-data/
+.docker/
+
+# Container logs
+containers/
+docker-compose.logs
+
+# === IDE & EDITORS ===
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# PyCharm
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# === OPERATING SYSTEM ===
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# === TESTING & COVERAGE ===
+# Test results
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.cache
+nosetests.xml
+coverage/
+
+# === KUBERNETES & DEPLOYMENT ===
+# Kubernetes secrets
+k8s/secrets.yaml
+k8s/configmaps.yaml
+kustomization.yaml
+helm/values.prod.yaml
+helm/values.staging.yaml
+
+# Deployment artifacts
+deploy/
+deployment_logs/
+
+# === TEMPORARY & CACHE FILES ===
+# General temporary files
+tmp/
+temp/
+.tmp/
+.temp/
+*.tmp
+*.temp
+
+# Cache directories
+.cache/
+cache/
+.parcel-cache
+
+# === BACKUP & ARCHIVE FILES ===
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+*~
+.backup/
+
+# Archive files
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.rar
+*.7z
+
+# === DOCUMENTATION BUILD ===
+# Sphinx documentation
+docs/_build/
+docs/.doctrees/
+
+# mkdocs
+site/
+
+# === JUPYTER NOTEBOOKS ===
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+profile_default/
+ipython_config.py
+
+# === MISC DEVELOPMENT ===
+# Local development overrides
+local.py
+local_settings.py
+local_config.py
+
+# Performance monitoring
+.prof
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Celery beat schedule file
+celerybeat-schedule
+celerybeat.pid
+
+# === CUSTOM PROJECT FILES ===
+# Tournament system specific
+tournament_data/
+match_videos/
+team_logos/
+evidence_files/
+uploads/
+media/
+
+# Development utilities
+dev_tools/
+scripts/local/
+test_data/
+sample_data/
+
+# === SECURITY & COMPLIANCE ===
+# PCI/GDPR data
+pci_data/
+gdpr_exports/
+personal_data/
+sensitive_data/
+
+# Compliance reports
+compliance_reports/
+audit_reports/
+penetration_test_reports/
+
+# === END === 
