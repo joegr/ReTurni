@@ -1,289 +1,80 @@
 version: '3.8'
 
 services:
-  # Database Services
+  # Core Databases
   postgres:
     image: postgres:15-alpine
     container_name: tournament-postgres
     environment:
       POSTGRES_DB: tournament_db
       POSTGRES_USER: tournament_user
-      POSTGRES_PASSWORD: tournament_password
+      POSTGRES_PASSWORD: tournament_pass
+      POSTGRES_INITDB_ARGS: --encoding=UTF-8 --data-checksums
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     ports:
       - "5432:5432"
+    command: >
+      postgres 
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tournament_user -d tournament_db"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - tournament-network
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     container_name: tournament-redis
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass redis_pass
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - tournament-network
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: tournament-rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: tournament_user
-      RABBITMQ_DEFAULT_PASS: tournament_password
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      RABBITMQ_DEFAULT_PASS: tournament_pass
+      RABBITMQ_DEFAULT_VHOST: tournament_vhost
     ports:
       - "5672:5672"
       - "15672:15672"
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - tournament-network
-
-  # API Gateway
-  nginx:
-    image: nginx:alpine
-    container_name: tournament-nginx
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/conf.d:/etc/nginx/conf.d
-    ports:
-      - "8080:80"
-    depends_on:
-      - tournament-api
-    networks:
-      - tournament-network
-
-  # Microservices
-  tournament-api:
-    build:
-      context: ./services/tournament-api
-      dockerfile: Dockerfile
-    container_name: tournament-api
-    environment:
-      - DATABASE_URL=postgresql://tournament_user:tournament_password@postgres:5432/tournament_db
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://tournament_user:tournament_password@rabbitmq:5672/
-      - ELO_SERVICE_URL=http://elo-service:8081
-      - LEADERBOARD_SERVICE_URL=http://leaderboard-svc:8082
-      - REVIEW_SERVICE_URL=http://review-workflow:8083
-      - HASH_SERVICE_URL=http://hash-verification:8084
-      - NOTIFICATION_SERVICE_URL=http://notification-svc:8085
-      - TEAM_SERVICE_URL=http://team-management:8086
-      - MATCH_SERVICE_URL=http://match-scheduling:8087
-      - AUDIT_SERVICE_URL=http://audit-service:8088
-      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
-      - LOG_LEVEL=INFO
-    ports:
-      - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - tournament-network
-
-  elo-service:
-    build:
-      context: ./services/elo-service
-      dockerfile: Dockerfile
-    container_name: elo-service
-    environment:
-      - DATABASE_URL=postgresql://tournament_user:tournament_password@postgres:5432/tournament_db
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://tournament_user:tournament_password@rabbitmq:5672/
-      - K_FACTOR=32
-      - INITIAL_ELO=1500
-      - LOG_LEVEL=INFO
-    ports:
-      - "8081:8081"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - tournament-network
-
-  leaderboard-svc:
-    build:
-      context: ./services/leaderboard-svc
-      dockerfile: Dockerfile
-    container_name: leaderboard-svc
-    environment:
-      - DATABASE_URL=postgresql://tournament_user:tournament_password@postgres:5432/tournament_db
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://tournament_user:tournament_password@rabbitmq:5672/
-      - LOG_LEVEL=INFO
-    ports:
-      - "8082:8082"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - tournament-network
-
-  review-workflow:
-    build:
-      context: ./services/review-workflow
-      dockerfile: Dockerfile
-    container_name: review-workflow
-    environment:
-      - DATABASE_URL=postgresql://tournament_user:tournament_password@postgres:5432/tournament_db
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://tournament_user:tournament_password@rabbitmq:5672/
-      - HASH_SERVICE_URL=http://hash-verification:8084
-      - NOTIFICATION_SERVICE_URL=http://notification-svc:8085
-      - LOG_LEVEL=INFO
-    ports:
-      - "8083:8083"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - tournament-network
-
-  hash-verification:
-    build:
-      context: ./services/hash-verification
-      dockerfile: Dockerfile
-    container_name: hash-verification
-    environment:
-      - DATABASE_URL=postgresql://tournament_user:tournament_password@postgres:5432/tournament_db
-      - REDIS_URL=redis://redis:6379
-      - HASH_ALGORITHM=SHA-256
-      - LOG_LEVEL=INFO
-    ports:
-      - "8084:8084"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - tournament-network
-
-  notification-svc:
-    build:
-      context: ./services/notification-svc
-      dockerfile: Dockerfile
-    container_name: notification-svc
-    environment:
-      - DATABASE_URL=postgresql://tournament_user:tournament_password@postgres:5432/tournament_db
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://tournament_user:tournament_password@rabbitmq:5672/
-      - SMTP_HOST=smtp.gmail.com
-      - SMTP_PORT=587
-      - SMTP_USER=your-email@gmail.com
-      - SMTP_PASS=your-app-password
-      - LOG_LEVEL=INFO
-    ports:
-      - "8085:8085"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - tournament-network
-
-  team-management:
-    build:
-      context: ./services/team-management
-      dockerfile: Dockerfile
-    container_name: team-management
-    environment:
-      - DATABASE_URL=postgresql://tournament_user:tournament_password@postgres:5432/tournament_db
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://tournament_user:tournament_password@rabbitmq:5672/
-      - NOTIFICATION_SERVICE_URL=http://notification-svc:8085
-      - LOG_LEVEL=INFO
-    ports:
-      - "8086:8086"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - tournament-network
-
-  match-scheduling:
-    build:
-      context: ./services/match-scheduling
-      dockerfile: Dockerfile
-    container_name: match-scheduling
-    environment:
-      - DATABASE_URL=postgresql://tournament_user:tournament_password@postgres:5432/tournament_db
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://tournament_user:tournament_password@rabbitmq:5672/
-      - NOTIFICATION_SERVICE_URL=http://notification-svc:8085
-      - LOG_LEVEL=INFO
-    ports:
-      - "8087:8087"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - tournament-network
-
-  audit-service:
-    build:
-      context: ./services/audit-service
-      dockerfile: Dockerfile
-    container_name: audit-service
-    environment:
-      - DATABASE_URL=postgresql://tournament_user:tournament_password@postgres:5432/tournament_db
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://tournament_user:tournament_password@rabbitmq:5672/
-      - LOG_LEVEL=INFO
-    ports:
-      - "8088:8088"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - tournament-network
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
 
   # Monitoring Stack
   prometheus:
     image: prom/prometheus:latest
     container_name: tournament-prometheus
+    ports:
+      - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -291,40 +82,316 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
-    networks:
-      - tournament-network
 
   grafana:
     image: grafana/grafana:latest
     container_name: tournament-grafana
+    ports:
+      - "3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
-    ports:
-      - "3001:3000"
-    depends_on:
-      - prometheus
-    networks:
-      - tournament-network
 
-  # Admin Dashboard
-  admin-dashboard:
+  # Core Microservices
+  api-gateway:
     build:
-      context: ./frontend/admin-dashboard
+      context: ./services/api-gateway
       dockerfile: Dockerfile
-    container_name: admin-dashboard
+    container_name: tournament-api-gateway
+    ports:
+      - "8080:8080"
     environment:
-      - REACT_APP_API_URL=http://localhost:8080/api
-      - REACT_APP_WS_URL=ws://localhost:8080/ws
+      - DATABASE_URL=postgresql://tournament_user:tournament_pass@postgres:5432/tournament_db
+      - REDIS_URL=redis://:redis_pass@redis:6379/0
+      - RABBITMQ_URL=amqp://tournament_user:tournament_pass@rabbitmq:5672/tournament_vhost
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/api-gateway:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+  tournament-api:
+    build:
+      context: ./services/tournament-api
+      dockerfile: Dockerfile
+    container_name: tournament-api
+    ports:
+      - "8081:8080"
+    environment:
+      - DATABASE_URL=postgresql://tournament_user:tournament_pass@postgres:5432/tournament_db
+      - REDIS_URL=redis://:redis_pass@redis:6379/1
+      - RABBITMQ_URL=amqp://tournament_user:tournament_pass@rabbitmq:5672/tournament_vhost
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/tournament-api:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+  elo-service:
+    build:
+      context: ./services/elo-service
+      dockerfile: Dockerfile
+    container_name: elo-service
+    ports:
+      - "8082:8080"
+    environment:
+      - DATABASE_URL=postgresql://tournament_user:tournament_pass@postgres:5432/tournament_db
+      - REDIS_URL=redis://:redis_pass@redis:6379/2
+      - RABBITMQ_URL=amqp://tournament_user:tournament_pass@rabbitmq:5672/tournament_vhost
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/elo-service:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+  leaderboard-service:
+    build:
+      context: ./services/leaderboard-service
+      dockerfile: Dockerfile
+    container_name: leaderboard-service
+    ports:
+      - "8083:8080"
+    environment:
+      - DATABASE_URL=postgresql://tournament_user:tournament_pass@postgres:5432/tournament_db
+      - REDIS_URL=redis://:redis_pass@redis:6379/3
+      - RABBITMQ_URL=amqp://tournament_user:tournament_pass@rabbitmq:5672/tournament_vhost
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/leaderboard-service:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+  review-workflow:
+    build:
+      context: ./services/review-workflow
+      dockerfile: Dockerfile
+    container_name: review-workflow
+    ports:
+      - "8084:8080"
+    environment:
+      - DATABASE_URL=postgresql://tournament_user:tournament_pass@postgres:5432/tournament_db
+      - REDIS_URL=redis://:redis_pass@redis:6379/4
+      - RABBITMQ_URL=amqp://tournament_user:tournament_pass@rabbitmq:5672/tournament_vhost
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/review-workflow:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+  hash-verification:
+    build:
+      context: ./services/hash-verification
+      dockerfile: Dockerfile
+    container_name: hash-verification
+    ports:
+      - "8085:8080"
+    environment:
+      - DATABASE_URL=postgresql://tournament_user:tournament_pass@postgres:5432/tournament_db
+      - REDIS_URL=redis://:redis_pass@redis:6379/5
+      - RABBITMQ_URL=amqp://tournament_user:tournament_pass@rabbitmq:5672/tournament_vhost
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/hash-verification:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+  team-management:
+    build:
+      context: ./services/team-management
+      dockerfile: Dockerfile
+    container_name: team-management
+    ports:
+      - "8086:8080"
+    environment:
+      - DATABASE_URL=postgresql://tournament_user:tournament_pass@postgres:5432/tournament_db
+      - REDIS_URL=redis://:redis_pass@redis:6379/6
+      - RABBITMQ_URL=amqp://tournament_user:tournament_pass@rabbitmq:5672/tournament_vhost
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/team-management:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+  match-scheduling:
+    build:
+      context: ./services/match-scheduling
+      dockerfile: Dockerfile
+    container_name: match-scheduling
+    ports:
+      - "8087:8080"
+    environment:
+      - DATABASE_URL=postgresql://tournament_user:tournament_pass@postgres:5432/tournament_db
+      - REDIS_URL=redis://:redis_pass@redis:6379/7
+      - RABBITMQ_URL=amqp://tournament_user:tournament_pass@rabbitmq:5672/tournament_vhost
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/match-scheduling:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    ports:
+      - "8088:8080"
+    environment:
+      - DATABASE_URL=postgresql://tournament_user:tournament_pass@postgres:5432/tournament_db
+      - REDIS_URL=redis://:redis_pass@redis:6379/8
+      - RABBITMQ_URL=amqp://tournament_user:tournament_pass@rabbitmq:5672/tournament_vhost
+      - SMTP_HOST=localhost
+      - SMTP_PORT=587
+      - SMTP_USER=
+      - SMTP_PASS=
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/notification-service:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+  audit-service:
+    build:
+      context: ./services/audit-service
+      dockerfile: Dockerfile
+    container_name: audit-service
+    ports:
+      - "8089:8080"
+    environment:
+      - DATABASE_URL=postgresql://tournament_user:tournament_pass@postgres:5432/tournament_db
+      - REDIS_URL=redis://:redis_pass@redis:6379/9
+      - RABBITMQ_URL=amqp://tournament_user:tournament_pass@rabbitmq:5672/tournament_vhost
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/audit-service:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tournament-frontend
     ports:
       - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+      - REACT_APP_WS_URL=ws://localhost:8080
+      - REACT_APP_ENVIRONMENT=development
     depends_on:
-      - tournament-api
-    networks:
-      - tournament-network
+      - api-gateway
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm start
+
+  # Background Workers
+  celery-worker:
+    build:
+      context: ./services/celery-workers
+      dockerfile: Dockerfile
+    container_name: celery-worker
+    environment:
+      - DATABASE_URL=postgresql://tournament_user:tournament_pass@postgres:5432/tournament_db
+      - REDIS_URL=redis://:redis_pass@redis:6379/10
+      - RABBITMQ_URL=amqp://tournament_user:tournament_pass@rabbitmq:5672/tournament_vhost
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/celery-workers:/app
+    command: celery -A main.celery worker --loglevel=info
+
+  celery-beat:
+    build:
+      context: ./services/celery-workers
+      dockerfile: Dockerfile
+    container_name: celery-beat
+    environment:
+      - DATABASE_URL=postgresql://tournament_user:tournament_pass@postgres:5432/tournament_db
+      - REDIS_URL=redis://:redis_pass@redis:6379/10
+      - RABBITMQ_URL=amqp://tournament_user:tournament_pass@rabbitmq:5672/tournament_vhost
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/celery-workers:/app
+    command: celery -A main.celery beat --loglevel=info
 
 volumes:
   postgres_data:
@@ -334,5 +401,5 @@ volumes:
   grafana_data:
 
 networks:
-  tournament-network:
-    driver: bridge 
+  default:
+    name: tournament-network 
